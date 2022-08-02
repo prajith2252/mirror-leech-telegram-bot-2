@@ -25,7 +25,7 @@ from base64 import standard_b64encode, b64decode
 
 from bot import LOGGER, UPTOBOX_TOKEN, CRYPT, EMAIL, PWSSD, CLONE_LOACTION as GDRIVE_FOLDER_ID
 from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link
+from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link, is_ouo_link
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 fmed_list = ['fembed.net', 'fembed.com', 'femax20.com', 'fcdn.stream', 'feurl.com', 'layarkacaxxi.icu',
@@ -40,6 +40,8 @@ def direct_link_generator(link: str):
         return zippy_share(link)
     elif 'yadi.sk' in link or 'disk.yandex.com' in link:
         return yandex_disk(link)
+    elif is_ouo_link(link):
+        return ouo(link) 
     elif 'mediafire.com' in link:
         return mediafire(link)
     elif 'uptobox.com' in link:
@@ -80,6 +82,8 @@ def direct_link_generator(link: str):
         return gplinks(link)
     elif is_mdisk_link(link):
         return mdisk(link)
+    elif 'we.tl' in link:
+        return wetransfer(link)
     elif is_dl_link(link):
         return dlbypass(link) 
     elif any(x in link for x in fmed_list):
@@ -646,26 +650,74 @@ def mdis_k(urlx):
        return sendMessage(link, bot, message)
 
 def dlbypass(url: str) -> str:
-    DOMAIN = 'https://yoshare.net'
-    
-    client = cloudscraper.create_scraper(interpreter='nodejs', allow_brotli=False)
-    res = client.get(url)
+    api = "https://api.emilyx.in/api"
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    resp = client.get(url)
+    if resp.status_code == 404:
+        return "File not found/The link you entered is wrong!"
+    try:
+        resp = client.post(api, json={"type": "droplink", "url": url})
+        res = resp.json()
+    except BaseException:
+        return "API UnResponsive / Invalid Link !"
+    if res["success"] is True:
+        return res["url"]
+    else:
+        return res["msg"]
 
-    h = {'referer': DOMAIN}
-    res = client.get(url, headers=h)
 
-    bs4 = BeautifulSoup(res.content, 'lxml')
-    inputs = bs4.find_all('input')
-    data = { input.get('name'): input.get('value') for input in inputs }
+WETRANSFER_API_URL = "https://wetransfer.com/api/v4/transfers"
+WETRANSFER_DOWNLOAD_URL = WETRANSFER_API_URL + "/{transfer_id}/download"
 
-    h = {
-        'content-type': 'application/x-www-form-urlencoded',
-        'x-requested-with': 'XMLHttpRequest'
+def _prepare_session() -> rsession:
+    s = rsession()
+    r = s.get("https://wetransfer.com/")
+    m = re_search('name="csrf-token" content="([^"]+)"', r.text)
+    s.headers.update({
+            "x-csrf-token": m.group(1),
+            "x-requested-with": "XMLHttpRequest",
+        })
+    return s
+
+def wetransfer(url: str) -> str:
+    if url.startswith("https://we.tl/"):
+        r = rhead(url, allow_redirects=True)
+        url = r.url
+    recipient_id = None
+    params = urlparse(url).path.split("/")[2:]
+    if len(params) == 2:
+        transfer_id, security_hash = params
+    elif len(params) == 3:
+        transfer_id, recipient_id, security_hash = params
+    else:
+        return None
+    j = {
+        "intent": "entire_transfer",
+        "security_hash": security_hash,
     }
-    p = urlparse(url)
-    final_url = f'{p.scheme}://{p.netloc}/links/go'
+    if recipient_id:
+        j["recipient_id"] = recipient_id
+    s = _prepare_session()
+    r = s.post(WETRANSFER_DOWNLOAD_URL.format(transfer_id=transfer_id), json=j)
+    j = r.json()
+    try:
+        if "direct_link" in j:
+            return j["direct_link"]
+    except:
+        raise DirectDownloadLinkException("ERROR: Error while trying to generate Direct Link from WeTransfer!")
 
-    time.sleep(3.1)
-    res = client.post(final_url, data=data, headers=h).json()
-
-    return res["url"]
+def ouo(url: str) -> str:
+    api = "https://api.emilyx.in/api"
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    resp = client.get(url)
+    if resp.status_code == 404:
+        return "File not found/The link you entered is wrong!"
+    try:
+        resp = client.post(api, json={"type": "ouo", "url": url})
+        res = resp.json()
+    except BaseException:
+        return "API UnResponsive / Invalid Link !"
+    if res["success"] is True:
+        return res["url"]
+    else:
+        return res["msg"]
