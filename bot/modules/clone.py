@@ -10,8 +10,8 @@ from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.mirror_utils.status_utils.clone_status import CloneStatus
 from bot import dispatcher, LOGGER, STOP_DUPLICATE, download_dict, download_dict_lock, Interval
-from bot.helper.ext_utils.bot_utils import is_gdrive_link, new_thread, is_gdtot_link, is_appdrive_link, is_gp_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link
-from bot.helper.mirror_utils.download_utils.direct_link_generator import gdtot, appdrive_dl, gplinks, mdisk, dlbypass, ouo, htp
+from bot.helper.ext_utils.bot_utils import is_gdrive_link, new_thread, is_gdtot_link, is_appdrive_link, is_gp_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link
+from bot.helper.mirror_utils.download_utils.direct_link_generator import gdtot, appdrive_dl, gplinks, mdisk, dlbypass, ouo, htp, rock, kolop_dl, gt, psm
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 
@@ -19,7 +19,7 @@ def _clone(message, bot):
     args = message.text.split()
     reply_to = message.reply_to_message
     link = ''
-    multi=1
+    multi = 0
     if len(args) > 1:
         link = args[1].strip()
         if link.strip().isdigit():
@@ -36,6 +36,16 @@ def _clone(message, bot):
             tag = f"@{reply_to.from_user.username}"
         else:
             tag = reply_to.from_user.mention_html(reply_to.from_user.first_name)
+    is_psm = is_psm_link(link)
+    if is_psm:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = psm(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"PSMlink_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
     is_htp = is_htp_link(link)
     if is_htp:
         try:
@@ -43,6 +53,26 @@ def _clone(message, bot):
             link = htp(link)
             deleteMessage(bot, msg)
             msg = sendMessage(f"htplink_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
+    is_gt = is_gt_link(link)
+    if is_gt:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = gt(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"gtlink_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
+    is_rock = is_rock_link(link)
+    if is_rock:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = rock(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"rocklink_bypassed-Jack:<code>{link}</code>", bot, message) 
         except DirectDownloadLinkException as e:
             deleteMessage(bot, msg)
             return sendMessage(str(e), bot, message)
@@ -105,6 +135,15 @@ def _clone(message, bot):
         except DirectDownloadLinkException as e:
             deleteMessage(bot, msg)
             return sendMessage(str(e), bot, message)
+    is_kolop = is_kolop_link(link)
+    if is_kolop:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = kolop_dl(link)
+            deleteMessage(bot, msg)
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
     if is_gdrive_link(link):
         gd = GoogleDriveHelper()
         res, size, name, files = gd.helper(link)
@@ -120,7 +159,9 @@ def _clone(message, bot):
         if multi > 1:
             sleep(4)
             nextmsg = type('nextmsg', (object, ), {'chat_id': message.chat_id, 'message_id': message.reply_to_message.message_id + 1})
-            nextmsg = sendMessage(message.text.replace(str(multi), str(multi - 1), 1), bot, nextmsg)
+            cmsg = message.text.split()
+            cmsg[1] = f"{multi - 1}"
+            nextmsg = sendMessage(" ".join(cmsg), bot, nextmsg)
             nextmsg.from_user.id = message.from_user.id
             sleep(4)
             Thread(target=_clone, args=(nextmsg, bot)).start()
@@ -155,7 +196,7 @@ def _clone(message, bot):
             sendMarkup(result + cc, bot, message, button)
             LOGGER.info(f'Cloning Done: {name}')
     else:
-        sendMessage("Send Gdrive link along with command or by replying to the link by command\n\n<b>Multi links only by replying to first link/file:</b>\n<code>/cmd</code> 10(number of links/files)", bot, message)
+        sendMessage("Again clone the above link or invalid link", bot, message)
 
 @new_thread
 def cloneNode(update, context):

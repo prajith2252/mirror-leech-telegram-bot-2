@@ -234,7 +234,7 @@ def is_gp_link(url: str):
     return "gplinks.co" in url
 
 def is_appdrive_link(url: str):
-    return "appdrive.in" in url or "driveapp.in" in url or "gdflix.pro" in url or "drivehub.in" in url or "drivesharer.in" in url or "drivebit.in" in url or "drivelinks.in" in url or "driveace.in" in url or "drivepro.in" in url
+    return "appdrive.in" in url or "appdrive.info" in url or "driveapp.in" in url or "gdflix.pro" in url or "drivehub.in" in url or "drivesharer.in" in url or "drivebit.in" in url or "drivelinks.in" in url or "driveace.in" in url or "drivepro.in" in url
 
 def is_ouo_link(url: str):
     return "ouo.io" in url or "ouo.press" in url
@@ -246,7 +246,19 @@ def is_dl_link(url: str):
     return "droplink.co" in url
 
 def is_htp_link(url: str) :
-    return "htpmovies.xyz" in url
+    return "htpmovies.xyz" in url or "toonworld4all.me" in url or "htpmovies.art" in url 
+
+def is_rock_link(url: str) :
+    return "rocklinks.net" in url or "shortingly.me" in url
+
+def is_kolop_link(url: str) :
+    return "kolop.icu" in url
+
+def is_gt_link(url: str) :
+    return "gtlinks.me" in url
+
+def is_psm_link(url: str) :
+    return "psa.pm" in url
 
 
 def is_mega_link(url: str):

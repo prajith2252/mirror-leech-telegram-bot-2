@@ -23,9 +23,9 @@ from cfscrape import create_scraper
 from bs4 import BeautifulSoup
 from base64 import standard_b64encode, b64decode
 
-from bot import LOGGER, UPTOBOX_TOKEN, CRYPT, EMAIL, PWSSD, CLONE_LOACTION as GDRIVE_FOLDER_ID
+from bot import LOGGER, UPTOBOX_TOKEN, CRYPT, EMAIL, PWSSD, CLONE_LOACTION as GDRIVE_FOLDER_ID, KOLOP_CRYPT
 from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link
+from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 fmed_list = ['fembed.net', 'fembed.com', 'femax20.com', 'fcdn.stream', 'feurl.com', 'layarkacaxxi.icu',
@@ -74,6 +74,8 @@ def direct_link_generator(link: str):
         return solidfiles(link)
     elif 'krakenfiles.com' in link:
         return krakenfiles(link)
+    elif 'upload.ee' in link:
+        return uploadee(link)
     elif is_gdtot_link(link):
         return gdtot(link)
     elif is_appdrive_link(link):
@@ -88,6 +90,16 @@ def direct_link_generator(link: str):
         return wetransfer(link)
     elif is_dl_link(link):
         return dlbypass(link) 
+    elif is_rock_link(link):
+        return rock(link)
+    elif 'hubdrive.me' in link:
+        return hubdrive(link) 
+    elif is_psm_link(link):
+        return psm(link) 
+    elif is_kolop_link in link:
+        return kolop_dl(link) 
+    elif is_gt_link(link):
+        return gt(link) 
     elif any(x in link for x in fmed_list):
         return fembed(link)
     elif any(x in link for x in ['sbembed.com', 'watchsb.com', 'streamsb.net', 'sbplay.org']):
@@ -115,11 +127,11 @@ def yandex_disk(url: str) -> str:
 
 def uptobox(url: str) -> str:
     """ Uptobox direct link generator
-    based on https://github.com/jovanzers/WinTenCermin """
+    based on https://github.com/jovanzers/WinTenCermin and https://github.com/sinoobie/noobie-mirror """
     try:
         link = re_findall(r'\bhttps?://.*uptobox\.com\S+', url)[0]
     except IndexError:
-        raise DirectDownloadLinkException("No Uptobox links found\n")
+        raise DirectDownloadLinkException("No Uptobox links found")
     if UPTOBOX_TOKEN is None:
         LOGGER.error('UPTOBOX_TOKEN not provided!')
         dl_url = link
@@ -129,10 +141,24 @@ def uptobox(url: str) -> str:
             dl_url = link
         except:
             file_id = re_findall(r'\bhttps?://.*uptobox\.com/(\w+)', url)[0]
-            file_link = 'https://uptobox.com/api/link?token=%s&file_code=%s' % (UPTOBOX_TOKEN, file_id)
+            file_link = f'https://uptobox.com/api/link?token={UPTOBOX_TOKEN}&file_code={file_id}'
             req = rget(file_link)
             result = req.json()
-            dl_url = result['data']['dlLink']
+            if result['message'].lower() == 'success':
+                dl_url = result['data']['dlLink']
+            elif result['message'].lower() == 'waiting needed':
+                waiting_time = result["data"]["waiting"] + 1
+                waiting_token = result["data"]["waitingToken"]
+                sleep(waiting_time)
+                req2 = rget(f"{file_link}&waitingToken={waiting_token}")
+                result2 = req2.json()
+                dl_url = result2['data']['dlLink']
+            elif result['message'].lower() == 'you need to wait before requesting a new download link':
+                cooldown = divmod(result['data']['waiting'], 60)
+                raise DirectDownloadLinkException(f"ERROR: Uptobox is being limited please wait {cooldown[0]} min {cooldown[1]} sec.")
+            else:
+                LOGGER.info(f"UPTOBOX_ERROR: {result}")
+                raise DirectDownloadLinkException(f"ERROR: {result['message']}")
     return dl_url
 
 def mediafire(url: str) -> str:
@@ -382,6 +408,16 @@ def krakenfiles(page_link: str) -> str:
         raise DirectDownloadLinkException(
             f"Failed to acquire download URL from kraken for : {page_link}")
 
+def uploadee(url: str) -> str:
+    """ uploadee direct link generator
+    By https://github.com/iron-heart-x"""
+    try:
+        soup = BeautifulSoup(rget(url).content, 'lxml')
+        sa = soup.find('a', attrs={'id':'d_l'})
+        return sa['href']
+    except:
+        raise DirectDownloadLinkException(f"ERROR: Failed to acquire download URL from upload.ee for : {url}")
+
 def gdtot(url: str) -> str:
     """ Gdtot google drive link generator
     By https://github.com/xcscxr """
@@ -508,23 +544,38 @@ def appdrive_dl(url: str) -> str:
             return "Faced an Unknown Error!"
         return info_parsed["gdrive_link"]
     except BaseException:
-        return "Unable to Extract GDrive Link"
+        raise DirectDownloadLinkException("ERROR: Try in your broswer, mostly file not found or user limit exceeded!")
 
 def gplinks(url: str):
-    api = "https://api.emilyx.in/api"
     client = cloudscraper.create_scraper(allow_brotli=False)
-    resp = client.get(url)
-    if resp.status_code == 404:
-        return "File not found/The link you entered is wrong!"
+    p = urlparse(url)
+    final_url = f'{p.scheme}://{p.netloc}/links/go'
+
+    res = client.head(url)
+    header_loc = res.headers['location']
+    url = url[:-1] if url[-1] == '/' else url
+
+    param = url.split("/")[-1]
+    req_url = f'{p.scheme}://{p.netloc}/{param}'
+    p = urlparse(header_loc)
+    ref_url = f'{p.scheme}://{p.netloc}/'
+
+    h = { 'referer': ref_url }
+    res = client.get(req_url, headers=h, allow_redirects=False)
+
+    bs4 = BeautifulSoup(res.content, 'html.parser')
+    inputs = bs4.find_all('input')
+    data = { input.get('name'): input.get('value') for input in inputs }
+
+    h = {
+        'referer': ref_url,
+        'x-requested-with': 'XMLHttpRequest',
+    }
+    time.sleep(10)
+    res = client.post(final_url, headers=h, data=data)
     try:
-        resp = client.post(api, json={"type": "gplinks", "url": url})
-        res = resp.json()
-    except BaseException:
-        return "API UnResponsive / Invalid Link !"
-    if res["success"] is True:
-        return res["url"]
-    else:
-        return res["msg"]
+        return res.json()['url'].replace('\/','/')
+    except: return 'Something went wrong :('
 
 def mdisk(url: str) -> str:
 
@@ -587,22 +638,6 @@ def mdis_k(urlx):
        return yoyo
        return sendMessage(link, bot, message)
 
-def dlbypass(url: str) -> str:
-    api = "https://api.emilyx.in/api"
-    client = cloudscraper.create_scraper(allow_brotli=False)
-    resp = client.get(url)
-    if resp.status_code == 404:
-        return "File not found/The link you entered is wrong!"
-    try:
-        resp = client.post(api, json={"type": "droplink", "url": url})
-        res = resp.json()
-    except BaseException:
-        return "API UnResponsive / Invalid Link !"
-    if res["success"] is True:
-        return res["url"]
-    else:
-        return res["msg"]
-
 
 WETRANSFER_API_URL = "https://wetransfer.com/api/v4/transfers"
 WETRANSFER_DOWNLOAD_URL = WETRANSFER_API_URL + "/{transfer_id}/download"
@@ -640,9 +675,9 @@ def wetransfer(url: str) -> str:
     j = r.json()
     try:
         if "direct_link" in j:
-            return j["direct_link"]
+            return j["direct_link"]    
     except:
-        raise DirectDownloadLinkException("ERROR: Error while trying to generate Direct Link from WeTransfer!")
+        raise DirectDownloadLinkException("ERROR: Error while trying bypass!")
 
 def ouo(url: str) -> str:
     api = "https://api.emilyx.in/api"
@@ -666,3 +701,172 @@ def htp(url: str) -> str:
         return download.headers["location"]
     except:
             return wronglink
+
+
+def rock(url: str) -> str:
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    if 'rocklinks.net' in url:
+        DOMAIN = "https://blog.disheye.com"
+    else:
+        DOMAIN = "https://go.techyjeeshan.xyz"
+
+    url = url[:-1] if url[-1] == '/' else url
+
+    code = url.split("/")[-1]
+    if 'rocklinks.net' in url:
+        final_url = f"{DOMAIN}/{code}?quelle=" 
+    else:
+        final_url = f"{DOMAIN}/{code}?quelle="
+
+    resp = client.get(final_url)
+    soup = BeautifulSoup(resp.content, "html.parser")
+    
+    try: inputs = soup.find(id="go-link").find_all(name="input")
+    except: return "Incorrect Link"
+    
+    data = { input.get('name'): input.get('value') for input in inputs }
+
+    h = { "x-requested-with": "XMLHttpRequest" }
+    
+    time.sleep(10)
+    r = client.post(f"{DOMAIN}/links/go", data=data, headers=h)
+    try:
+        return r.json()['url']
+    except: return "Something went wrong :("
+
+def hubdrive(url: str) -> str:
+    """ Hubdrive google drive link generator
+    By https://github.com/xcscxr """
+    if not EMAIL:
+        raise DirectDownloadLinkException("ERROR: EMAIL not provided")
+    temp = urlparse(url)
+    client = rsession()
+    client.post(f'{temp.scheme}://{temp.netloc}/sign', data={'email': EMAIL, 'pass': PWSSD})
+    try:
+        client.cookies.get_dict()['crypt']
+    except:
+        raise DirectDownloadLinkException("ERROR: invalid SHARER_EMAIL")
+    try:
+        res = client.get(url)
+        req_url = f"{temp.scheme}://{temp.netloc}/ajax.php?ajax=download"
+        res = client.post(req_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': url.split('/')[-1]}).json()['file']
+        client.get(f'{temp.scheme}://{temp.netloc}/login.php?action=logout')
+        return f'https://drive.google.com/open?id={res.split("gd=")[-1]}'
+    except:
+        return "Something went wrong :("
+
+def parse_info(res):
+    info_parsed = {}
+    title = re.findall('>(.*?)<\/h4>', res.text)[0]
+    info_chunks = re.findall('>(.*?)<\/td>', res.text)
+    info_parsed['title'] = title
+    for i in range(0, len(info_chunks), 2):
+        info_parsed[info_chunks[i]] = info_chunks[i+1]
+    return info_parsed
+
+def kolop_dl(url):
+    if not KOLOP_CRYPT:
+        raise DirectDownloadLinkException("ERROR: KOLOP_CRYPT not provided")
+    client = requests.Session()
+    client.cookies.update({'crypt': KOLOP_CRYPT})
+    
+    res = client.get(url)
+    info_parsed = parse_info(res)
+    info_parsed['error'] = False
+    
+    up = urlparse(url)
+    req_url = f"{up.scheme}://{up.netloc}/ajax.php?ajax=download"
+    
+    file_id = url.split('/')[-1]
+    
+    data = { 'id': file_id }
+    
+    headers = {
+        'x-requested-with': 'XMLHttpRequest'
+    }
+    
+    try:
+        res = client.post(req_url, headers=headers, data=data).json()['file']
+    except:
+        raise DirectDownloadLinkException("ERROR: drive full ayindi personal drive lo konni delete chey ra")
+    
+    gd_id = re.findall('gd=(.*)', res, re.DOTALL)[0]
+    
+    info_parsed['gdrive_url'] = f"https://drive.google.com/open?id={gd_id}"
+    info_parsed['src_url'] = url
+
+    return info_parsed['gdrive_url']
+
+def gt(url):
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    DOMAIN = "https://go.gyanitheme.com"
+    url = url[:-1] if url[-1] == '/' else url
+
+    code = url.split("/")[-1]
+    final_url = f"{DOMAIN}/{code}?quelle="
+
+    resp = client.get(final_url)
+    
+    soup = BeautifulSoup(resp.content, "html.parser")
+    try:
+        inputs = soup.find(id="go-link").find_all(name="input")
+    except:
+        return "Incorrect Link"
+    data = { input.get('name'): input.get('value') for input in inputs }
+
+    h = { "x-requested-with": "XMLHttpRequest" }
+    
+    time.sleep(6)
+    r = client.post(f"{DOMAIN}/links/go", data=data, headers=h)
+    try:
+        return r.json()['url']
+    except: return "Something went wrong :("
+
+def psm(url):
+       client = rsession()
+       h = {
+             'upgrade-insecure-requests': '1',
+             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36',
+       }
+       res = client.get(url, cookies={}, headers=h)
+       print(res.text) 
+       url = 'https://try2link.com/'+re.findall('try2link\.com\/(.*?) ', res.text)[0]
+
+       res = client.head(url)
+
+       id = re.findall('d=(.*?)&', res.headers['location'])[0]
+       id = base64.b64decode(id).decode('utf-8')
+
+       url += f'/?d={id}'
+       res = client.get(url)
+
+       bs4 = BeautifulSoup(res.content, 'html.parser')
+       inputs = bs4.find_all('input')
+       data = { input.get('name'): input.get('value') for input in inputs }
+    
+       time.sleep(6.5)
+       res = client.post(
+           'https://try2link.com/links/go',
+          headers={
+                 'referer': url,
+                 'x-requested-with': 'XMLHttpRequest',
+          }, data=data
+       )
+       out = res.json()
+       return out
+
+def dlbypass(url):
+    api = "https://api.emilyx.in/api"
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    resp = client.get(url)
+    if resp.status_code == 404:
+        return "File not found/The link you entered is wrong!"
+    try:
+        resp = client.post(api, json={"type": "droplink", "url": url})
+        res = resp.json()
+    except BaseException:
+        return "API UnResponsive / Invalid Link !"
+    if res["success"] is True:
+        return res["url"]
+    else:
+        return res["msg"]
