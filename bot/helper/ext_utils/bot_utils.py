@@ -242,17 +242,34 @@ def is_ouo_link(url: str):
 def is_mdisk_link(url: str):
     return "mdisk.me" in url
 
+def is_try2link_link(url: str):
+    return "try2link.com" in url
+
+def is_ez4_link(url: str):
+    return "ez4short.com" in url
+
+def is_loan_link(url: str):
+    return "loan.kinemaster.cc" in url or "www.theforyou.in" in url
+
 def is_dl_link(url: str):
     return "droplink.co" in url
 
 def is_htp_link(url: str) :
-    return "htpmovies.xyz" in url or "toonworld4all.me" in url or "htpmovies.art" in url or "shortingly.in" in url
+    return "toonworld4all.me" in url or "shortingly.in" in url
+
+def is_htpm_link(url: str) :
+    url = re_match(r'https?://htpmovies.\S+', url)
+    return bool(url)
 
 def is_rock_link(url: str) :
     return "rocklinks.net" in url or "shortingly.me" in url
 
 def is_kolop_link(url: str) :
     return "kolop.icu" in url
+
+def is_ola_link(url: str) :
+    url = re_match(r'https?://olamovies.\S+', url)
+    return bool(url)
 
 def is_gt_link(url: str) :
     return "gtlinks.me" in url

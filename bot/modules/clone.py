@@ -10,8 +10,8 @@ from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.mirror_utils.status_utils.clone_status import CloneStatus
 from bot import dispatcher, LOGGER, STOP_DUPLICATE, download_dict, download_dict_lock, Interval
-from bot.helper.ext_utils.bot_utils import is_gdrive_link, new_thread, is_gdtot_link, is_appdrive_link, is_gp_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link
-from bot.helper.mirror_utils.download_utils.direct_link_generator import gdtot, appdrive_dl, gplinks, mdisk, dlbypass, ouo, htp, rock, kolop_dl, gt, psm
+from bot.helper.ext_utils.bot_utils import is_gdrive_link, new_thread, is_gdtot_link, is_appdrive_link, is_gp_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link, is_loan_link, is_ola_link, is_try2link_link, is_htpm_link, is_ez4_link
+from bot.helper.mirror_utils.download_utils.direct_link_generator import gdtot, appdrive_dl, gplinks, mdisk, dlbypass, ouo, htp, rock, kolop_dl, gt, psm, loan, ola, try2link, htpm, ez4
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 
@@ -46,11 +46,41 @@ def _clone(message, bot):
         except DirectDownloadLinkException as e:
             deleteMessage(bot, msg)
             return sendMessage(str(e), bot, message)
+    is_ola = is_ola_link(link)
+    if is_ola:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = ola(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"olalink_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
+    is_ez4 = is_ez4_link(link)
+    if is_ez4:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = ez4(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"ez4_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
     is_htp = is_htp_link(link)
     if is_htp:
         try:
             msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
             link = htp(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"htplink_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
+    is_htpm = is_htpm_link(link)
+    if is_htpm:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = htpm(link)
             deleteMessage(bot, msg)
             msg = sendMessage(f"htplink_bypassed-Jack:<code>{link}</code>", bot, message) 
         except DirectDownloadLinkException as e:
@@ -116,7 +146,26 @@ def _clone(message, bot):
         except DirectDownloadLinkException as e:
             deleteMessage(bot, msg)
             return sendMessage(str(e), bot, message)
-    
+    is_loan = is_loan_link(link)
+    if is_loan:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = loan(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"link_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
+    is_try2link = is_try2link_link(link)
+    if is_try2link:
+        try:
+            msg = sendMessage(f"Processing: <code>{link}</code>", bot, message)
+            link = try2link(link)
+            deleteMessage(bot, msg)
+            msg = sendMessage(f"try2link_bypassed-Jack:<code>{link}</code>", bot, message) 
+        except DirectDownloadLinkException as e:
+            deleteMessage(bot, msg)
+            return sendMessage(str(e), bot, message)
     is_gdtot = is_gdtot_link(link)
     if is_gdtot:
         try:

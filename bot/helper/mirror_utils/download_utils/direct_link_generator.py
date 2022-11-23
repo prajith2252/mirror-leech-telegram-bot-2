@@ -25,7 +25,7 @@ from base64 import standard_b64encode, b64decode
 
 from bot import LOGGER, UPTOBOX_TOKEN, CRYPT, EMAIL, PWSSD, CLONE_LOACTION as GDRIVE_FOLDER_ID, KOLOP_CRYPT
 from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link
+from bot.helper.ext_utils.bot_utils import is_gdtot_link, is_gp_link, is_appdrive_link, is_mdisk_link, is_dl_link, is_ouo_link, is_htp_link, is_rock_link, is_kolop_link, is_gt_link, is_psm_link, is_loan_link, is_ola_link, is_try2link_link, is_htpm_link, is_ez4_link
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 
 fmed_list = ['fembed.net', 'fembed.com', 'femax20.com', 'fcdn.stream', 'feurl.com', 'layarkacaxxi.icu',
@@ -78,12 +78,18 @@ def direct_link_generator(link: str):
         return uploadee(link)
     elif is_gdtot_link(link):
         return gdtot(link)
+    elif is_try2link_link(link):
+        return try2link(link)
+    elif is_ez4_link(link):
+        return ez4(link)
     elif is_appdrive_link(link):
       return appdrive_dl(link)
     elif is_gp_link(link):
         return gplinks(link)
     elif is_htp_link(link):
         return htp(link) 
+    elif is_htpm_link(link):
+        return htpm(link)
     elif is_mdisk_link(link):
         return mdisk(link)
     elif 'we.tl' in link:
@@ -96,7 +102,11 @@ def direct_link_generator(link: str):
         return hubdrive(link) 
     elif is_psm_link(link):
         return psm(link) 
-    elif is_kolop_link in link:
+    elif is_ola_link(link):
+        return ola(link)
+    elif is_loan_link(link):
+        return loan(link)
+    elif is_kolop_link(link):
         return kolop_dl(link) 
     elif is_gt_link(link):
         return gt(link) 
@@ -696,12 +706,8 @@ def ouo(url: str) -> str:
         return res["msg"]
 
 def htp(url: str) -> str:
-    yurl = url.replace("htpmovies.art/exit", "htpmovies.art/go")
-    download = rget(yurl, stream=True, allow_redirects=False) 
-    try: 
-        return download.headers["location"]
-    except:
-            return wronglink
+    download = rget(url, stream=True, allow_redirects=False) 
+    return download.headers["location"]
 
 
 def rock(url: str) -> str:
@@ -871,3 +877,97 @@ def dlbypass(url):
         return res["url"]
     else:
         return res["msg"]
+def loan(url):
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    j = url.split('?token=')[-1]
+    param = j.replace('&m=1','')
+    if "loan.kinemaster.cc" in url:
+         DOMAIN = "https://go.kinemaster.cc"
+    else:
+         DOMAIN = "https://go.theforyou.in"
+    final_url = f"{DOMAIN}/{param}"
+    resp = client.get(final_url)
+    soup = BeautifulSoup(resp.content, "html.parser")    
+    try: inputs = soup.find(id="go-link").find_all(name="input")
+    except: return "Incorrect Link"
+    data = { input.get('name'): input.get('value') for input in inputs }
+    h = { "x-requested-with": "XMLHttpRequest" }
+    time.sleep(10)
+    r = client.post(f"{DOMAIN}/links/go", data=data, headers=h)
+    try:
+        return r.json()['url']
+    except: return "Something went wrong :("
+
+def ola(url) :
+    soup = "None"
+    client = requests.Session()
+    headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': url,
+            'Alt-Used': 'olamovies.wtf',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
+        }
+    while 'rocklinks.net' not in soup and "try2link.com" not in soup and "ez4short.com" not in soup:
+             res = client.post(url, headers=headers, allow_redirects=True)
+             j = res.text
+             rose = j.split('url = "')[-1]
+             soup = rose.split('";')[0]       
+             if "rocklinks.net" in soup or "try2link.com" in soup or "ez4short.com" in soup:
+                   return soup
+def try2link(url):
+    client = create_scraper()
+    
+    url = url[:-1] if url[-1] == '/' else url
+    
+    params = (('d', int(time.time()) + (60 * 4)),)
+    r = client.get(url, params=params, headers= {'Referer': 'https://newforex.online/'})
+    
+    soup = BeautifulSoup(r.text, 'html.parser')
+    inputs = soup.find_all("input")
+    data = { input.get('name'): input.get('value') for input in inputs }
+    time.sleep(7)
+    
+    headers = {'Host': 'try2link.com', 'X-Requested-With': 'XMLHttpRequest', 'Origin': 'https://try2link.com', 'Referer': url}
+    
+    bypassed_url = client.post('https://try2link.com/links/go', headers=headers,data=data)
+    return bypassed_url.json()["url"]
+
+def htpm(url):
+    client = cloudscraper.create_scraper(allow_brotli=False)
+    r = client.get(url, allow_redirects=True).text
+    j = r.split('("')[-1]
+    url = j.split('")')[0]
+    return url
+
+def ez4(url):
+    
+    client = cloudscraper.create_scraper(allow_brotli=False)
+      
+    DOMAIN = "https://ez4short.com"
+     
+    ref = "https://techmody.io/"
+    
+    h = {"referer": ref}
+  
+    resp = client.get(url,headers=h)
+    
+    soup = BeautifulSoup(resp.content, "html.parser")
+    
+    inputs = soup.find_all("input")
+   
+    data = { input.get('name'): input.get('value') for input in inputs }
+
+    h = { "x-requested-with": "XMLHttpRequest" }
+    
+    time.sleep(8)
+    r = client.post(f"{DOMAIN}/links/go", data=data, headers=h)
+    try:
+        return r.json()['url']
+    except: return "Something went wrong :("
